@@ -41,6 +41,17 @@ public class ConstantFolder {
     public void optimize() {
         ClassGen cgen = new ClassGen(original);
         ConstantPoolGen cpgen = cgen.getConstantPool();
+
+        // task3 completed here
+        cgen = dynamicVariableFoldingMethod(cgen, cpgen);
+
+        this.optimized = cgen.getJavaClass();
+    }
+
+    /*
+    method to implement task3 on the handout, completing dynamic variable folding as required, returning the class generator. 
+    */  
+    private ClassGen dynamicVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
         for (org.apache.bcel.classfile.Method method : cgen.getMethods()) {
             MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
             InstructionList il = mg.getInstructionList();
@@ -104,7 +115,8 @@ public class ConstantFolder {
                 cgen.replaceMethod(method, mg.getMethod());
             }
         }
-        this.optimized = cgen.getJavaClass();
+
+        return cgen;
     }
     
     
