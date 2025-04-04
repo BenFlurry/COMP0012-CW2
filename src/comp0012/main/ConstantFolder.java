@@ -11,8 +11,13 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.apache.bcel.classfile.Attribute;
 import org.apache.bcel.classfile.ClassParser;
+import org.apache.bcel.classfile.Code;
+import org.apache.bcel.classfile.CodeException;
 import org.apache.bcel.classfile.JavaClass;
+import org.apache.bcel.classfile.Method;
+import org.apache.bcel.classfile.Constant;
 import org.apache.bcel.generic.ClassGen;
 import org.apache.bcel.generic.ConstantPoolGen;
 import org.apache.bcel.generic.Instruction;
@@ -50,7 +55,7 @@ public class ConstantFolder {
         ConstantPoolGen cpgen = cgen.getConstantPool();
 
         // Iterate over each method and optimize its instruction list.
-        for (org.apache.bcel.classfile.Method method : cgen.getMethods()) {
+        for (Method method : cgen.getMethods()) {
             if (method.getCode() == null)
                 continue; // Skip abstract or native methods.
             MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
@@ -68,10 +73,13 @@ public class ConstantFolder {
             replaceVariableLoads(finder, ilist, cpgen, varMap);
            
             ilist.setPositions(true);
-			mg.setMaxStack();
-			mg.setMaxLocals();
-			mg.update();
-            cgen.replaceMethod(method, mg.getMethod());
+            mg.setMaxStack();
+            mg.setMaxLocals();
+            mg.update();
+            
+            // Remove any StackMapTable attribute from the method to avoid verification errors.
+            Method updatedMethod = removeStackMapTable(mg.getMethod(), cgen);
+            cgen.replaceMethod(method, updatedMethod);
         }
         this.optimized = cgen.getJavaClass();
     }
@@ -229,13 +237,62 @@ public class ConstantFolder {
                 try {
                     ilist.delete(match[0]);
                 } catch (TargetLostException e) {
-                    // If further processing is required, handle lost targets here.
                     e.printStackTrace();
                 }
                 modified = true;
             }
         }
         return modified;
+    }
+    
+    /**
+     * Removes the StackMapTable attribute (if present) from a Method's Code attribute.
+     */
+    private Method removeStackMapTable(Method m, ClassGen cgen) {
+        // If there's no Code attribute, do nothing.
+        if (m.getCode() == null) {
+            return m;
+        }
+        
+        Code oldCode = m.getCode();
+        // Filter out the "StackMapTable" attribute.
+        Attribute[] oldAttrs = oldCode.getAttributes();
+        List<Attribute> newAttrs = new ArrayList<>();
+        for (Attribute attr : oldAttrs) {
+            if (!"StackMapTable".equals(attr.getName())) {
+                newAttrs.add(attr);
+            }
+        }
+        
+        // Construct a new Code attribute using the full constructor in BCEL:
+        // Code(int name_index, int length, int max_stack, int max_locals,
+        //      byte[] code, CodeException[] exception_table,
+        //      Attribute[] attributes, ConstantPool constant_pool)
+        Code newCode = new Code(
+            oldCode.getNameIndex(),
+            oldCode.getLength(),
+            oldCode.getMaxStack(),
+            oldCode.getMaxLocals(),
+            oldCode.getCode(),
+            oldCode.getExceptionTable(),
+            newAttrs.toArray(new Attribute[0]),
+            // Use the method's ConstantPool or the class's pool
+            // Usually m.getConstantPool() is correct, but if you prefer,
+            // you can do cgen.getConstantPool().getConstantPool()
+            m.getConstantPool()
+        );
+        
+        // Now replace the old Code attribute with the new one in the Method.
+        // The Method constructor signature is:
+        // Method(int access_flags, int name_index, int signature_index,
+        //        Attribute[] attributes, ConstantPool cp)
+        return new Method(
+            m.getAccessFlags(),
+            m.getNameIndex(),
+            m.getSignatureIndex(),
+            new Attribute[] { newCode },
+            m.getConstantPool()
+        );
     }
     
     public void write(String optimisedFilePath) {
