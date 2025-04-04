@@ -12,9 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.apache.bcel.classfile.ClassParser;
-import org.apache.bcel.classfile.Code;
 import org.apache.bcel.classfile.JavaClass;
-import org.apache.bcel.classfile.Method;
 import org.apache.bcel.generic.ClassGen;
 import org.apache.bcel.generic.ConstantPoolGen;
 import org.apache.bcel.generic.Instruction;
@@ -52,9 +50,8 @@ public class ConstantFolder {
         ConstantPoolGen cpgen = cgen.getConstantPool();
 
         // Iterate over each method and optimize its instruction list.
-        for (Method method : cgen.getMethods()) {
-            Code code = method.getCode();
-            if (code == null)
+        for (org.apache.bcel.classfile.Method method : cgen.getMethods()) {
+            if (method.getCode() == null)
                 continue; // Skip abstract or native methods.
             MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
             InstructionList ilist = mg.getInstructionList();
@@ -69,14 +66,11 @@ public class ConstantFolder {
             
             // Replace variable loads with constant pushes.
             replaceVariableLoads(finder, ilist, cpgen, varMap);
-            
-            try {
-                mg.setMaxStack();
-                mg.setMaxLocals();
-                mg.update();
-            } catch (TargetLostException e) {
-                e.printStackTrace();
-            }
+           
+            ilist.setPositions(true);
+			mg.setMaxStack();
+			mg.setMaxLocals();
+			mg.update();
             cgen.replaceMethod(method, mg.getMethod());
         }
         this.optimized = cgen.getJavaClass();
@@ -94,7 +88,7 @@ public class ConstantFolder {
             ISTORE istore = (ISTORE) match[1].getInstruction();
 
             int varIndex = istore.getIndex();
-            int value = ((org.apache.bcel.classfile.ConstantInteger) cpgen.getConstant(ldc.getIndex())).getValue();
+            int value = ((org.apache.bcel.classfile.ConstantInteger) cpgen.getConstant(ldc.getIndex())).getBytes();
             int position = match[0].getPosition();
 
             addVariableValue(varMap, varIndex, value, position);
@@ -107,7 +101,7 @@ public class ConstantFolder {
             ISTORE istore = (ISTORE) match[1].getInstruction();
 
             int varIndex = istore.getIndex();
-            int value = bipush.getValue();
+            int value = bipush.getValue().intValue();
             int position = match[0].getPosition();
 
             addVariableValue(varMap, varIndex, value, position);
@@ -120,7 +114,7 @@ public class ConstantFolder {
             ISTORE istore = (ISTORE) match[1].getInstruction();
 
             int varIndex = istore.getIndex();
-            int value = sipush.getValue();
+            int value = sipush.getValue().intValue();
             int position = match[0].getPosition();
 
             addVariableValue(varMap, varIndex, value, position);
@@ -228,11 +222,14 @@ public class ConstantFolder {
 
             if (value != null) {
                 Instruction replacedInstruction = constantInstruction(value, cpgen);
-                // Replace the ILOAD instruction with the constant instruction.
-                ilist.insert(match[0], replacedInstruction);
+                // Insert the constant push instruction before the ILOAD and get the handle.
+                InstructionHandle newHandle = ilist.insert(match[0], replacedInstruction);
+                // Redirect any branch instructions from the old handle to the new handle.
+                ilist.redirectBranches(match[0], newHandle);
                 try {
                     ilist.delete(match[0]);
                 } catch (TargetLostException e) {
+                    // If further processing is required, handle lost targets here.
                     e.printStackTrace();
                 }
                 modified = true;

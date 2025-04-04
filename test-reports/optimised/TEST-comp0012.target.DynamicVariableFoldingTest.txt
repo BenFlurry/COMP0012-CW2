@@ -1,0 +1,248 @@
+Testsuite: comp0012.target.DynamicVariableFoldingTest
+Tests run: 5, Failures: 0, Errors: 5, Skipped: 0, Time elapsed: 0.008 sec
+
+Testcase: testMethodThree took 0 sec
+	Caused an ERROR
+StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+java.lang.VerifyError: StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+	at comp0012.target.DynamicVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485)
+
+Testcase: testMethodFour took 0 sec
+	Caused an ERROR
+StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+java.lang.VerifyError: StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+	at comp0012.target.DynamicVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485)
+
+Testcase: testMethodOne took 0 sec
+	Caused an ERROR
+StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+java.lang.VerifyError: StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+	at comp0012.target.DynamicVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485)
+
+Testcase: testMethodTwoReturn took 0 sec
+	Caused an ERROR
+StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+java.lang.VerifyError: StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+	at comp0012.target.DynamicVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485)
+
+Testcase: testMethodTwoOut took 0 sec
+	Caused an ERROR
+StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+java.lang.VerifyError: StackMapTable error: bad offset
+Exception Details:
+  Location:
+    comp0012/target/DynamicVariableFolding.methodTwo()Z @0: sipush
+  Reason:
+    Invalid stackmap specification.
+  Current Frame:
+    bci: @20
+    flags: { }
+    locals: { 'comp0012/target/DynamicVariableFolding', integer, integer }
+    stack: { 'java/io/PrintStream', integer }
+  Bytecode:
+    0000000: 1130 393c 1207 3db2 0008 1130 3912 07a2
+    0000010: 0007 04a7 0004 03b6 000e 033d 1130 3903
+    0000020: a400 0704 a700 0403 ac                 
+  Stackmap Table:
+    full_frame(@19,{Object[#30],Integer,Integer},{Object[#15]})
+    full_frame(@20,{Object[#30],Integer,Integer},{Object[#15],Integer})
+    same_frame(@34)
+    same_locals_1_stack_item_frame(@35,Integer)
+
+	at comp0012.target.DynamicVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:501)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:485)
+
