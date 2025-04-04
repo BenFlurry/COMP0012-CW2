@@ -4,12 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 import org.apache.bcel.classfile.ClassParser;
 import org.apache.bcel.classfile.JavaClass;
@@ -18,16 +13,13 @@ import org.apache.bcel.generic.ConstantPoolGen;
 import org.apache.bcel.generic.Instruction;
 import org.apache.bcel.generic.InstructionHandle;
 import org.apache.bcel.generic.InstructionList;
-import org.apache.bcel.util.InstructionFinder;
 import org.apache.bcel.generic.MethodGen;
-import org.apache.bcel.generic.TargetLostException;
 import org.apache.bcel.generic.LDC;
 import org.apache.bcel.generic.ISTORE;
 import org.apache.bcel.generic.BIPUSH;
 import org.apache.bcel.generic.SIPUSH;
 import org.apache.bcel.generic.ICONST;
 import org.apache.bcel.generic.ILOAD;
-import org.apache.bcel.generic.LDC2_W; // if needed
 
 public class ConstantFolder {
 
