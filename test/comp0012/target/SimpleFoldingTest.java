@@ -32,7 +32,8 @@ public class SimpleFoldingTest {
     @Test
     public void testSimple(){
         sf.simple();
-        assertEquals("12412\n", outContent.toString());
+        String actual = outContent.toString().replace("\r\n", "\n");
+        assertEquals("12412\n", actual);
     }
 
 }
