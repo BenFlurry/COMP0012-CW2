@@ -46,9 +46,17 @@ public class ConstantFolder {
         ClassGen cgen = new ClassGen(original);
         ConstantPoolGen cpgen = cgen.getConstantPool();
 
+		// task2 completed here
+		simpleVariableFoldingMethod(cgen, cpgen);
         // task3 completed here
         cgen = dynamicVariableFoldingMethod(cgen, cpgen);
+        this.optimized = cgen.getJavaClass();
+    }
 
+    /*
+    method to implement task2 on the handout, completing simple variable folding as required
+    */  
+	private void simpleVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
 		for (Method method : cgen.getMethods()) {
 			InstructionList instList = new InstructionList(method.getCode().getCode());
 			simpleInt(instList, cpgen);
@@ -56,9 +64,7 @@ public class ConstantFolder {
 			simpleFloat(instList, cpgen);
 			simpleDouble(instList, cpgen);
 		}
-
-        this.optimized = cgen.getJavaClass();
-    }
+	}
 
     /*
     method to implement task3 on the handout, completing dynamic variable folding as required, returning the class generator. 
@@ -132,7 +138,7 @@ public class ConstantFolder {
     }
     
     
-
+	// task2 helper method
 	private void simpleInt(InstructionList instList, ConstantPoolGen cpgen) {
 		InstructionFinder finder = new InstructionFinder(instList);
 		String pattern = "(ICONST|BIPUSH|SIPUSH|LDC) (ICONST|BIPUSH|SIPUSH|LDC) (IADD|ISUB|IMUL|IDIV)";
@@ -162,6 +168,7 @@ public class ConstantFolder {
 		}
 	}
 
+	// task2 helper method
 	private void simpleLong(InstructionList instList, ConstantPoolGen cpgen) {
 		InstructionFinder finder = new InstructionFinder(instList);
 		String pattern = "(LCONST|LDC2_W) (LCONST|LDC2_W) (LADD|LSUB|LMUL|LDIV)";
@@ -184,6 +191,7 @@ public class ConstantFolder {
 		}
 	}
 
+	// task2 helper method
 	private void simpleFloat(InstructionList instList, ConstantPoolGen cpgen) {
 		InstructionFinder finder = new InstructionFinder(instList);
 		String pattern = "(FCONST|LDC_W) (FCONST|LDC_W) (FADD|FSUB|FMUL|FDIV)";
@@ -206,6 +214,7 @@ public class ConstantFolder {
 		}
 	}
 
+	// task2 helper method
 	private void simpleDouble(InstructionList instList, ConstantPoolGen cpgen) {
 		InstructionFinder finder = new InstructionFinder(instList);
 		String pattern = "(DCONST|LDC2_W) (DCONST|LDC2_W) (DADD|DSUB|DMUL|DDIV)";
@@ -229,6 +238,7 @@ public class ConstantFolder {
 		}
 	}
 
+	// task2 helper method
 	private <T> Object getConstant(org.apache.bcel.generic.Instruction inst, ConstantPoolGen cpgen, Class<T> constantType) {
 		if (constantType == int.class) {
 			if (inst instanceof LDC) {
@@ -250,6 +260,7 @@ public class ConstantFolder {
 		return 0;
 	}
 
+	// task2 helper method
 	private void replaceInst(InstructionHandle[] toReplace, Instruction replacement, InstructionList instList){
 		for (InstructionHandle handle : toReplace) {
 			handle.setInstruction(replacement);
