@@ -30,4 +30,6 @@ public class ConstantVariableFoldingTest {
     public void testMethodFour(){
         assertEquals(true, cvf.methodFour());
     }
+    
+
 }

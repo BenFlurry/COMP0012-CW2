@@ -6,21 +6,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Optional;
+import java.util.Stack;
 
-import org.apache.bcel.classfile.ClassParser;
-import org.apache.bcel.classfile.JavaClass;
-import org.apache.bcel.generic.ClassGen;
-import org.apache.bcel.generic.ConstantPoolGen;
-import org.apache.bcel.generic.Instruction;
-import org.apache.bcel.generic.InstructionHandle;
-import org.apache.bcel.generic.InstructionList;
-import org.apache.bcel.generic.MethodGen;
-import org.apache.bcel.generic.LDC;
-import org.apache.bcel.generic.ISTORE;
-import org.apache.bcel.generic.BIPUSH;
-import org.apache.bcel.generic.SIPUSH;
-import org.apache.bcel.generic.ICONST;
-import org.apache.bcel.generic.ILOAD;
 import org.apache.bcel.classfile.*;
 import org.apache.bcel.generic.*;
 import org.apache.bcel.util.InstructionFinder;
@@ -41,34 +29,178 @@ public class ConstantFolder {
             e.printStackTrace();
         }
     }
-    
+
     public void optimize() {
         ClassGen cgen = new ClassGen(original);
         ConstantPoolGen cpgen = cgen.getConstantPool();
 
-		// task2 completed here
-		simpleVariableFoldingMethod(cgen, cpgen);
-        // task3 completed here
+        simpleVariableFoldingMethod(cgen, cpgen);
+        constantVariableFoldingMethod(cgen, cpgen);
         cgen = dynamicVariableFoldingMethod(cgen, cpgen);
+
         this.optimized = cgen.getJavaClass();
     }
 
-    /*
-    method to implement task2 on the handout, completing simple variable folding as required
-    */  
-	private void simpleVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
-		for (Method method : cgen.getMethods()) {
-			InstructionList instList = new InstructionList(method.getCode().getCode());
-			simpleInt(instList, cpgen);
-			simpleLong(instList, cpgen);
-			simpleFloat(instList, cpgen);
-			simpleDouble(instList, cpgen);
-		}
-	}
+    private Optional<Integer> constantVariableFoldingEvalMethod(Instruction currInstruction,
+            java.util.Stack<Object> methodStack,
+            HashMap<Integer, Integer> localEnv,
+            ConstantPoolGen cpgen) {
+
+        // Handle stack push ops
+        if (currInstruction instanceof ICONST) {
+            methodStack.push(((ICONST) currInstruction).getValue());
+            return Optional.empty();
+        }
+        if (currInstruction instanceof BIPUSH) {
+            methodStack.push(((BIPUSH) currInstruction).getValue());
+            return Optional.empty();
+        }
+        if (currInstruction instanceof SIPUSH) {
+            methodStack.push(((SIPUSH) currInstruction).getValue());
+            return Optional.empty();
+        }
+        if (currInstruction instanceof LDC) {
+            LDC ldc = (LDC) currInstruction;
+            Object value = ldc.getValue(cpgen);
+            assert value instanceof Integer : "LDC is not an integer constant";
+            methodStack.push(value);
+            return Optional.empty();
+        }
+
+        // Handle stack pop ops
+        if (currInstruction instanceof ISTORE) {
+            int index = ((ISTORE) currInstruction).getIndex();
+            assert methodStack.size() >= 1 : "Bad instruction, ISTORE requires at least one int on stack";
+            localEnv.put(index, (Integer) methodStack.pop());
+            return Optional.empty();
+        }
+        if (currInstruction instanceof ILOAD) {
+            int index = ((ILOAD) currInstruction).getIndex();
+            assert localEnv.containsKey(index) : "Bad instruction, ILOAD expects local variable at index " + index;
+            methodStack.push(localEnv.get(index));
+            return Optional.empty();
+        }
+        if (currInstruction instanceof IADD) {
+            assert methodStack.size() >= 2 : "Bad instruction, IADD requires at least two ints on stack";
+            int x1 = (Integer) methodStack.pop();
+            int x2 = (Integer) methodStack.pop();
+            methodStack.push(x1 + x2);
+            return Optional.empty();
+        }
+        if (currInstruction instanceof ISUB) {
+            assert methodStack.size() >= 2 : "Bad instruction, ISUB requires at least two ints on stack";
+            int x1 = (Integer) methodStack.pop();
+            int x2 = (Integer) methodStack.pop();
+            methodStack.push(x1 - x2);
+            return Optional.empty();
+        }
+        if (currInstruction instanceof IMUL) {
+            assert methodStack.size() >= 2 : "Bad instruction, IMUL requires at least two ints on stack";
+            int x1 = (Integer) methodStack.pop();
+            int x2 = (Integer) methodStack.pop();
+            methodStack.push(x1 * x2);
+            return Optional.empty();
+        }
+        if (currInstruction instanceof IDIV) {
+            assert methodStack.size() >= 2 : "Bad instruction, IDIV requires at least two ints on stack";
+            int x1 = (Integer) methodStack.pop();
+            int x2 = (Integer) methodStack.pop();
+            methodStack.push(x1 / x2);
+            return Optional.empty();
+        }
+        if (currInstruction instanceof IRETURN) {
+            assert methodStack.size() >= 1 : "Bad instruction, IRETURN requires at least one int on stack";
+            return Optional.of((Integer) methodStack.pop());
+        }
+
+        // Other instructions cannot be folded
+        return Optional.empty();
+    }
+
+    // TODO
+    private void constantVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
+        for (Method method : cgen.getMethods()) {
+            MethodGen methodGen = new MethodGen(method, cgen.getClassName(), cpgen);
+            InstructionList instructionList = methodGen.getInstructionList();
+            if (instructionList == null)
+                continue;
+
+            Stack<Object> methodStack = new Stack<>();
+            HashMap<Integer, Integer> localEnv = new HashMap<>();
+            Optional<Integer> returnValue = Optional.empty();
+
+            boolean canFoldFully = true;
+
+            for (InstructionHandle ih = instructionList.getStart(); ih != null; ih = ih.getNext()) {
+                Instruction currInstruction = ih.getInstruction();
+
+                try {
+                    returnValue = constantVariableFoldingEvalMethod(currInstruction, methodStack, localEnv, cpgen);
+                } catch (AssertionError | ClassCastException e) {
+                    canFoldFully = false;
+                    break;
+                }
+
+                if (returnValue.isPresent())
+                    break;
+            }
+
+            if (canFoldFully && returnValue.isPresent()) {
+                int constVal = returnValue.get();
+                InstructionList newIL = new InstructionList();
+
+                Instruction pushConst;
+                if (constVal >= -1 && constVal <= 5) {
+                    pushConst = new ICONST(constVal);
+                } else if (constVal >= Byte.MIN_VALUE && constVal <= Byte.MAX_VALUE) {
+                    pushConst = new BIPUSH((byte) constVal);
+                } else if (constVal >= Short.MIN_VALUE && constVal <= Short.MAX_VALUE) {
+                    pushConst = new SIPUSH((short) constVal);
+                } else {
+                    pushConst = new LDC(cpgen.addInteger(constVal));
+                }
+
+                newIL.append(pushConst);
+                newIL.append(InstructionFactory.createReturn(Type.INT));
+
+                methodGen.setInstructionList(newIL);
+                methodGen.setMaxStack();
+                methodGen.setMaxLocals();
+
+                cgen.replaceMethod(method, methodGen.getMethod());
+            }
+        }
+    }
+
+    // Helper: verifies top N operands on the stack are constants
+    private boolean checkOperands(java.util.Stack<Object> stack, int n) {
+        if (stack.size() < n)
+            return false;
+        for (int i = 1; i <= n; i++) {
+            if (!(stack.get(stack.size() - i) instanceof Integer))
+                return false;
+        }
+        return true;
+    }
 
     /*
-    method to implement task3 on the handout, completing dynamic variable folding as required, returning the class generator. 
-    */  
+     * method to implement task2 on the handout, completing simple variable folding
+     * as required
+     */
+    private void simpleVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
+        for (Method method : cgen.getMethods()) {
+            InstructionList instList = new InstructionList(method.getCode().getCode());
+            simpleInt(instList, cpgen);
+            simpleLong(instList, cpgen);
+            simpleFloat(instList, cpgen);
+            simpleDouble(instList, cpgen);
+        }
+    }
+
+    /*
+     * method to implement task3 on the handout, completing dynamic variable folding
+     * as required, returning the class generator.
+     */
     private ClassGen dynamicVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
         for (org.apache.bcel.classfile.Method method : cgen.getMethods()) {
             MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
@@ -108,9 +240,9 @@ public class ConstantFolder {
                         if (value >= -1 && value <= 5)
                             newInst = new ICONST(value);
                         else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE)
-                            newInst = new BIPUSH((byte)value);
+                            newInst = new BIPUSH((byte) value);
                         else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE)
-                            newInst = new SIPUSH((short)value);
+                            newInst = new SIPUSH((short) value);
                         else
                             newInst = new LDC(cpgen.addInteger(value));
                         ih.setInstruction(newInst);
@@ -122,8 +254,10 @@ public class ConstantFolder {
                     int index = ((ISTORE) inst).getIndex();
                     intConsts.remove(index);
                 }
-                // Similar peep-hole logic for long, float and double can be added here using LLOAD/LSTORE,
-                // FLOAD/FSTORE, DLOAD/DSTORE and their constant instructions (e.g., LCONST, FCONST, DCONST, LDC2_W).
+                // Similar peep-hole logic for long, float and double can be added here using
+                // LLOAD/LSTORE,
+                // FLOAD/FSTORE, DLOAD/DSTORE and their constant instructions (e.g., LCONST,
+                // FCONST, DCONST, LDC2_W).
             }
 
             if (modified) {
@@ -133,139 +267,170 @@ public class ConstantFolder {
                 cgen.replaceMethod(method, mg.getMethod());
             }
         }
-
         return cgen;
     }
-    
-    
-	// task2 helper method
-	private void simpleInt(InstructionList instList, ConstantPoolGen cpgen) {
-		InstructionFinder finder = new InstructionFinder(instList);
-		String pattern = "(ICONST|BIPUSH|SIPUSH|LDC) (ICONST|BIPUSH|SIPUSH|LDC) (IADD|ISUB|IMUL|IDIV)";
 
-		for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
-			InstructionHandle[] match = i.next();
-			int c1 = (int) getConstant(match[0].getInstruction(), cpgen, int.class);
-			int c2 = (int) getConstant(match[1].getInstruction(), cpgen, int.class);
+    // task2 helper method
+    private void simpleInt(InstructionList instList, ConstantPoolGen cpgen) {
+        InstructionFinder finder = new InstructionFinder(instList);
+        String pattern = "(ICONST|BIPUSH|SIPUSH|LDC) (ICONST|BIPUSH|SIPUSH|LDC) (IADD|ISUB|IMUL|IDIV)";
 
-			int result = 0;
-			switch (match[2].getInstruction().getName()) {
-				case "iadd":  result = c1 + c2; break;
-				case "isub":  result = c1 - c2; break;
-				case "imul":  result = c1 * c2; break;
-				case "idiv":  result = c1 / c2; break;
-			}
+        for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
+            InstructionHandle[] match = i.next();
+            int c1 = (int) getConstant(match[0].getInstruction(), cpgen, int.class);
+            int c2 = (int) getConstant(match[1].getInstruction(), cpgen, int.class);
 
-			Instruction inst = null;
-			if (result >= -128 && result <= 127) {
-				inst = new BIPUSH((byte) result);
-			}else if (result >= -32768 && result <= 32767) {
-				inst = new SIPUSH((short) result);
-			}else {
-				inst = new LDC(cpgen.addInteger(result));
-			}
-			replaceInst(match, inst, instList);
-		}
-	}
+            int result = 0;
+            switch (match[2].getInstruction().getName()) {
+                case "iadd":
+                    result = c1 + c2;
+                    break;
+                case "isub":
+                    result = c1 - c2;
+                    break;
+                case "imul":
+                    result = c1 * c2;
+                    break;
+                case "idiv":
+                    result = c1 / c2;
+                    break;
+            }
 
-	// task2 helper method
-	private void simpleLong(InstructionList instList, ConstantPoolGen cpgen) {
-		InstructionFinder finder = new InstructionFinder(instList);
-		String pattern = "(LCONST|LDC2_W) (LCONST|LDC2_W) (LADD|LSUB|LMUL|LDIV)";
+            Instruction inst = null;
+            if (result >= -128 && result <= 127) {
+                inst = new BIPUSH((byte) result);
+            } else if (result >= -32768 && result <= 32767) {
+                inst = new SIPUSH((short) result);
+            } else {
+                inst = new LDC(cpgen.addInteger(result));
+            }
+            replaceInst(match, inst, instList);
+        }
+    }
 
-		for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
-			InstructionHandle[] match = i.next();
-			long l1 = (long) getConstant(match[0].getInstruction(), cpgen, long.class);
-			long l2 = (long) getConstant(match[1].getInstruction(), cpgen, long.class);
+    // task2 helper method
+    private void simpleLong(InstructionList instList, ConstantPoolGen cpgen) {
+        InstructionFinder finder = new InstructionFinder(instList);
+        String pattern = "(LCONST|LDC2_W) (LCONST|LDC2_W) (LADD|LSUB|LMUL|LDIV)";
 
-			long result = 0;
-			switch (match[2].getInstruction().getName()) {
-				case "ladd": result = l1 + l2; break;
-				case "lsub": result = l1 - l2; break;
-				case "lmul": result = l1 * l2; break;
-				case "ldiv": result = l1 / l2; break;
-			}
+        for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
+            InstructionHandle[] match = i.next();
+            long l1 = (long) getConstant(match[0].getInstruction(), cpgen, long.class);
+            long l2 = (long) getConstant(match[1].getInstruction(), cpgen, long.class);
 
-			Instruction inst = new LDC2_W(cpgen.addLong(result));
-			replaceInst(match, inst, instList);
-		}
-	}
+            long result = 0;
+            switch (match[2].getInstruction().getName()) {
+                case "ladd":
+                    result = l1 + l2;
+                    break;
+                case "lsub":
+                    result = l1 - l2;
+                    break;
+                case "lmul":
+                    result = l1 * l2;
+                    break;
+                case "ldiv":
+                    result = l1 / l2;
+                    break;
+            }
 
-	// task2 helper method
-	private void simpleFloat(InstructionList instList, ConstantPoolGen cpgen) {
-		InstructionFinder finder = new InstructionFinder(instList);
-		String pattern = "(FCONST|LDC_W) (FCONST|LDC_W) (FADD|FSUB|FMUL|FDIV)";
+            Instruction inst = new LDC2_W(cpgen.addLong(result));
+            replaceInst(match, inst, instList);
+        }
+    }
 
-		for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
-			InstructionHandle[] match = i.next();
-			float f1 = (float) getConstant(match[0].getInstruction(), cpgen, float.class);
-			float f2 = (float) getConstant(match[1].getInstruction(), cpgen, float.class);
+    // task2 helper method
+    private void simpleFloat(InstructionList instList, ConstantPoolGen cpgen) {
+        InstructionFinder finder = new InstructionFinder(instList);
+        String pattern = "(FCONST|LDC_W) (FCONST|LDC_W) (FADD|FSUB|FMUL|FDIV)";
 
-			float result = 0;
-			switch (match[2].getInstruction().getName()) {
-				case "fadd": result = f1 + f2; break;
-				case "fsub": result = f1 - f2; break;
-				case "fmul": result = f1 * f2; break;
-				case "fdiv": result = f1 / f2; break;
-			}
+        for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
+            InstructionHandle[] match = i.next();
+            float f1 = (float) getConstant(match[0].getInstruction(), cpgen, float.class);
+            float f2 = (float) getConstant(match[1].getInstruction(), cpgen, float.class);
 
-			Instruction inst = new LDC_W(cpgen.addFloat(result));
-			replaceInst(match, inst, instList);
-		}
-	}
+            float result = 0;
+            switch (match[2].getInstruction().getName()) {
+                case "fadd":
+                    result = f1 + f2;
+                    break;
+                case "fsub":
+                    result = f1 - f2;
+                    break;
+                case "fmul":
+                    result = f1 * f2;
+                    break;
+                case "fdiv":
+                    result = f1 / f2;
+                    break;
+            }
 
-	// task2 helper method
-	private void simpleDouble(InstructionList instList, ConstantPoolGen cpgen) {
-		InstructionFinder finder = new InstructionFinder(instList);
-		String pattern = "(DCONST|LDC2_W) (DCONST|LDC2_W) (DADD|DSUB|DMUL|DDIV)";
+            Instruction inst = new LDC_W(cpgen.addFloat(result));
+            replaceInst(match, inst, instList);
+        }
+    }
 
-		for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
-			InstructionHandle[] match = i.next();
-			double d1 = (double) getConstant(match[0].getInstruction(), cpgen, double.class);
-			double d2 = (double) getConstant(match[1].getInstruction(), cpgen, double.class);
+    // task2 helper method
+    private void simpleDouble(InstructionList instList, ConstantPoolGen cpgen) {
+        InstructionFinder finder = new InstructionFinder(instList);
+        String pattern = "(DCONST|LDC2_W) (DCONST|LDC2_W) (DADD|DSUB|DMUL|DDIV)";
 
-			// Perform folding based on operation
-			double result = 0;
-			switch (match[2].getInstruction().getName()) {
-				case "dadd": result = d1 + d2; break;
-				case "dsub": result = d1 - d2; break;
-				case "dmul": result = d1 * d2; break;
-				case "ddiv": result = d1 / d2; break;
-			}
+        for (Iterator<InstructionHandle[]> i = finder.search(pattern); i.hasNext();) {
+            InstructionHandle[] match = i.next();
+            double d1 = (double) getConstant(match[0].getInstruction(), cpgen, double.class);
+            double d2 = (double) getConstant(match[1].getInstruction(), cpgen, double.class);
 
-			Instruction inst = new LDC2_W(cpgen.addDouble(result));
-			replaceInst(match, inst, instList);
-		}
-	}
+            // Perform folding based on operation
+            double result = 0;
+            switch (match[2].getInstruction().getName()) {
+                case "dadd":
+                    result = d1 + d2;
+                    break;
+                case "dsub":
+                    result = d1 - d2;
+                    break;
+                case "dmul":
+                    result = d1 * d2;
+                    break;
+                case "ddiv":
+                    result = d1 / d2;
+                    break;
+            }
 
-	// task2 helper method
-	private <T> Object getConstant(org.apache.bcel.generic.Instruction inst, ConstantPoolGen cpgen, Class<T> constantType) {
-		if (constantType == int.class) {
-			if (inst instanceof LDC) {
-				return ((ConstantInteger)((cpgen.getConstantPool()).getConstant(((LDC) inst).getIndex()))).getBytes();
-			} else if (inst instanceof ICONST) {
-				return ((ICONST) inst).getValue();
-			}
-		} else if (constantType == long.class) {
-			if (inst instanceof LDC2_W) {
-				return ((ConstantLong)((cpgen.getConstantPool()).getConstant(((LDC2_W) inst).getIndex()))).getBytes();
-			} else if (inst instanceof LCONST) {
-				return ((LCONST) inst).getValue();
-			}
-		} else if (constantType == float.class) {
-			return ((ConstantFloat)((cpgen.getConstantPool()).getConstant(((LDC_W) inst).getIndex()))).getBytes();
-		} else if (constantType == double.class) {
-			return ((ConstantDouble)((cpgen.getConstantPool()).getConstant(((LDC2_W) inst).getIndex()))).getBytes();
-		}
-		return 0;
-	}
+            Instruction inst = new LDC2_W(cpgen.addDouble(result));
+            replaceInst(match, inst, instList);
+        }
+    }
 
-	// task2 helper method
-	private void replaceInst(InstructionHandle[] toReplace, Instruction replacement, InstructionList instList){
-		for (InstructionHandle handle : toReplace) {
-			handle.setInstruction(replacement);
-		}
-	}
+    // task2 helper method
+    private <T> Object getConstant(org.apache.bcel.generic.Instruction inst, ConstantPoolGen cpgen,
+            Class<T> constantType) {
+        if (constantType == int.class) {
+            if (inst instanceof LDC) {
+                return ((ConstantInteger) ((cpgen.getConstantPool()).getConstant(((LDC) inst).getIndex()))).getBytes();
+            } else if (inst instanceof ICONST) {
+                return ((ICONST) inst).getValue();
+            }
+        } else if (constantType == long.class) {
+            if (inst instanceof LDC2_W) {
+                return ((ConstantLong) ((cpgen.getConstantPool()).getConstant(((LDC2_W) inst).getIndex()))).getBytes();
+            } else if (inst instanceof LCONST) {
+                return ((LCONST) inst).getValue();
+            }
+        } else if (constantType == float.class) {
+            return ((ConstantFloat) ((cpgen.getConstantPool()).getConstant(((LDC_W) inst).getIndex()))).getBytes();
+        } else if (constantType == double.class) {
+            return ((ConstantDouble) ((cpgen.getConstantPool()).getConstant(((LDC2_W) inst).getIndex()))).getBytes();
+        }
+        return 0;
+    }
+
+    // task2 helper method
+    private void replaceInst(InstructionHandle[] toReplace, Instruction replacement, InstructionList instList) {
+        for (InstructionHandle handle : toReplace) {
+            handle.setInstruction(replacement);
+        }
+    }
 
     public void write(String optimisedFilePath) {
         this.optimize();
