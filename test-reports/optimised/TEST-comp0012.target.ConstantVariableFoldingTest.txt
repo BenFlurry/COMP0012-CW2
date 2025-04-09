@@ -1,10 +1,10 @@
 Testsuite: comp0012.target.ConstantVariableFoldingTest
-Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.028 sec
+Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.039 sec
 
-Testcase: initializationError took 0.005 sec
+Testcase: initializationError took 0.006 sec
 	Caused an ERROR
-Invalid length 53 in LocalVariableTable in class file comp0012/target/ConstantVariableFolding
-java.lang.ClassFormatError: Invalid length 53 in LocalVariableTable in class file comp0012/target/ConstantVariableFolding
+Invalid length 19 in LocalVariableTable in class file comp0012/target/ConstantVariableFolding
+java.lang.ClassFormatError: Invalid length 19 in LocalVariableTable in class file comp0012/target/ConstantVariableFolding
 	at java.base/java.lang.ClassLoader.defineClass1(Native Method)
 	at java.base/java.lang.ClassLoader.defineClass(ClassLoader.java:1017)
 	at java.base/java.security.SecureClassLoader.defineClass(SecureClassLoader.java:150)

@@ -6,7 +6,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Stack;
 
 import org.apache.bcel.classfile.*;
@@ -31,6 +34,8 @@ public class ConstantFolder {
     }
 
     public void optimize() {
+        logClassBytecode("Original", original);
+
         ClassGen cgen = new ClassGen(original);
         ConstantPoolGen cpgen = cgen.getConstantPool();
 
@@ -39,138 +44,298 @@ public class ConstantFolder {
         cgen = dynamicVariableFoldingMethod(cgen, cpgen);
 
         this.optimized = cgen.getJavaClass();
+        logClassBytecode("Optimized", this.optimized);
     }
 
-    private Optional<Integer> constantVariableFoldingEvalMethod(Instruction currInstruction,
-            java.util.Stack<Object> methodStack,
-            HashMap<Integer, Integer> localEnv,
-            ConstantPoolGen cpgen) {
+    // START : CONSTANT FOLDING
+    private void logClassBytecode(String title, JavaClass jc) {
+        System.out.println("====== " + title + " ======");
+        System.out.println("Class Name: " + jc.getClassName());
+        ClassGen cgen = new ClassGen(jc);
+        ConstantPoolGen cpgen = cgen.getConstantPool();
 
-        // Handle stack push ops
-        if (currInstruction instanceof ICONST) {
-            methodStack.push(((ICONST) currInstruction).getValue());
-            return Optional.empty();
-        }
-        if (currInstruction instanceof BIPUSH) {
-            methodStack.push(((BIPUSH) currInstruction).getValue());
-            return Optional.empty();
-        }
-        if (currInstruction instanceof SIPUSH) {
-            methodStack.push(((SIPUSH) currInstruction).getValue());
-            return Optional.empty();
-        }
-        if (currInstruction instanceof LDC) {
-            LDC ldc = (LDC) currInstruction;
-            Object value = ldc.getValue(cpgen);
-            assert value instanceof Integer : "LDC is not an integer constant";
-            methodStack.push(value);
-            return Optional.empty();
-        }
+        for (Method method : cgen.getMethods()) {
+            System.out.println("Method: " + method.getName());
+            InstructionList il = new InstructionList(method.getCode().getCode());
+            System.out.println("Bytecode: \n" + il.toString());
+            System.out.println();
 
-        // Handle stack pop ops
-        if (currInstruction instanceof ISTORE) {
-            int index = ((ISTORE) currInstruction).getIndex();
-            assert methodStack.size() >= 1 : "Bad instruction, ISTORE requires at least one int on stack";
-            localEnv.put(index, (Integer) methodStack.pop());
-            return Optional.empty();
         }
-        if (currInstruction instanceof ILOAD) {
-            int index = ((ILOAD) currInstruction).getIndex();
-            assert localEnv.containsKey(index) : "Bad instruction, ILOAD expects local variable at index " + index;
-            methodStack.push(localEnv.get(index));
-            return Optional.empty();
+        // Print the constant pool
+        System.out.println("Constant Pool: ");
+        for (int i = 0; i < cpgen.getSize(); i++) {
+            Constant c = cpgen.getConstant(i);
+            if (c != null) {
+                System.out.println("Index " + i + ": " + c.toString());
+            }
         }
-        if (currInstruction instanceof IADD) {
-            assert methodStack.size() >= 2 : "Bad instruction, IADD requires at least two ints on stack";
-            int x1 = (Integer) methodStack.pop();
-            int x2 = (Integer) methodStack.pop();
-            methodStack.push(x1 + x2);
-            return Optional.empty();
-        }
-        if (currInstruction instanceof ISUB) {
-            assert methodStack.size() >= 2 : "Bad instruction, ISUB requires at least two ints on stack";
-            int x1 = (Integer) methodStack.pop();
-            int x2 = (Integer) methodStack.pop();
-            methodStack.push(x1 - x2);
-            return Optional.empty();
-        }
-        if (currInstruction instanceof IMUL) {
-            assert methodStack.size() >= 2 : "Bad instruction, IMUL requires at least two ints on stack";
-            int x1 = (Integer) methodStack.pop();
-            int x2 = (Integer) methodStack.pop();
-            methodStack.push(x1 * x2);
-            return Optional.empty();
-        }
-        if (currInstruction instanceof IDIV) {
-            assert methodStack.size() >= 2 : "Bad instruction, IDIV requires at least two ints on stack";
-            int x1 = (Integer) methodStack.pop();
-            int x2 = (Integer) methodStack.pop();
-            methodStack.push(x1 / x2);
-            return Optional.empty();
-        }
-        if (currInstruction instanceof IRETURN) {
-            assert methodStack.size() >= 1 : "Bad instruction, IRETURN requires at least one int on stack";
-            return Optional.of((Integer) methodStack.pop());
-        }
+        System.out.println();
 
-        // Other instructions cannot be folded
-        return Optional.empty();
     }
 
-    // TODO
+    // Handle logic for constant folding
+    private OptionalInt handleIntBinInstruction(Instruction inst, Number nlhs, Number nrhs) {
+        if (!(inst instanceof IADD || inst instanceof ISUB || inst instanceof IMUL || inst instanceof IDIV)) {
+            return OptionalInt.empty();
+        }
+
+        int lhs = nlhs.intValue();
+        int rhs = nrhs.intValue();
+
+        if (inst instanceof IADD) {
+            return OptionalInt.of(((Integer) lhs) + ((Integer) rhs));
+        }
+        if (inst instanceof ISUB) {
+            return OptionalInt.of(((Integer) lhs) - ((Integer) rhs));
+        }
+        if (inst instanceof IMUL) {
+            return OptionalInt.of(((Integer) lhs) * ((Integer) rhs));
+        }
+        if (inst instanceof IDIV) {
+            return OptionalInt.of(((Integer) lhs) / ((Integer) rhs));
+        }
+
+        throw new RuntimeException("Unreachable");
+    }
+
+    private OptionalLong handleLongBinInstruction(Instruction inst, Number nlhs, Number nrhs) {
+        if (!(inst instanceof LADD || inst instanceof LSUB || inst instanceof LMUL || inst instanceof LDIV)) {
+            return OptionalLong.empty();
+        }
+
+        long lhs = nlhs.longValue();
+        long rhs = nrhs.longValue();
+
+        if (inst instanceof LADD) {
+            return OptionalLong.of(((Long) lhs) + ((Long) rhs));
+        }
+        if (inst instanceof LSUB) {
+            return OptionalLong.of(((Long) lhs) - ((Long) rhs));
+        }
+        if (inst instanceof LMUL) {
+            return OptionalLong.of(((Long) lhs) * ((Long) rhs));
+        }
+        if (inst instanceof LDIV) {
+            return OptionalLong.of(((Long) lhs) / ((Long) rhs));
+        }
+
+        throw new RuntimeException("Unreachable");
+    }
+
+    private Optional<Float> handleFloatBinInstruction(Instruction inst, Number nlhs, Number nrhs) {
+        if (!(inst instanceof FADD || inst instanceof FSUB || inst instanceof FMUL || inst instanceof FDIV)) {
+            return Optional.empty();
+        }
+
+        float lhs = nlhs.floatValue();
+        float rhs = nrhs.floatValue();
+
+        if (inst instanceof FADD) {
+            return Optional.of(((Float) lhs) + ((Float) rhs));
+        }
+        if (inst instanceof FSUB) {
+            return Optional.of(((Float) lhs) - ((Float) rhs));
+        }
+        if (inst instanceof FMUL) {
+            return Optional.of(((Float) lhs) * ((Float) rhs));
+        }
+        if (inst instanceof FDIV) {
+            return Optional.of(((Float) lhs) / ((Float) rhs));
+        }
+
+        throw new RuntimeException("Unreachable");
+    }
+
+    private Optional<Double> handleDoubleBinInstruction(Instruction inst, Number nlhs, Number nrhs) {
+        if (!(inst instanceof DADD || inst instanceof DSUB || inst instanceof DMUL || inst instanceof DDIV)) {
+            return Optional.empty();
+        }
+
+        double lhs = nlhs.doubleValue();
+        double rhs = nrhs.doubleValue();
+
+        if (inst instanceof DADD) {
+            return Optional.of(((Double) lhs) + ((Double) rhs));
+        }
+        if (inst instanceof DSUB) {
+            return Optional.of(((Double) lhs) - ((Double) rhs));
+        }
+        if (inst instanceof DMUL) {
+            return Optional.of(((Double) lhs) * ((Double) rhs));
+        }
+        if (inst instanceof DDIV) {
+            return Optional.of(((Double) lhs) / ((Double) rhs));
+        }
+
+        throw new RuntimeException("Unreachable");
+    }
+
+    private boolean handlePushInstruction(Instruction inst, Stack<Number> stack, ConstantPoolGen cpgen) {
+        if (!(inst instanceof ICONST || inst instanceof BIPUSH || inst instanceof SIPUSH
+                || inst instanceof LCONST || inst instanceof FCONST || inst instanceof DCONST ||
+                inst instanceof LDC || inst instanceof LDC2_W)) {
+            return false;
+        }
+
+        if (inst instanceof ICONST) {
+            stack.push(((ICONST) inst).getValue());
+        }
+        if (inst instanceof BIPUSH) {
+            stack.push(((BIPUSH) inst).getValue());
+        }
+        if (inst instanceof SIPUSH) {
+            stack.push(((SIPUSH) inst).getValue());
+        }
+        if (inst instanceof LCONST) {
+            stack.push(((LCONST) inst).getValue());
+        }
+        if (inst instanceof FCONST) {
+            stack.push(((FCONST) inst).getValue());
+        }
+        if (inst instanceof DCONST) {
+            stack.push(((DCONST) inst).getValue());
+        }
+
+        if (inst instanceof LDC) {
+            Object value = ((LDC) inst).getValue(cpgen);
+            if (value instanceof Number)
+                stack.push((Number) value);
+        }
+
+        if (inst instanceof LDC2_W) {
+            Object value = ((LDC2_W) inst).getValue(cpgen);
+            if (value instanceof Number)
+                stack.push((Number) value);
+        }
+
+        return true;
+    }
+
+    private boolean handleStoreInstruction(Instruction inst, Stack<Number> stack,
+            Map<Integer, Number> varIndexToConstVal) {
+
+        if (!(inst instanceof StoreInstruction)) {
+            return false;
+        }
+
+        if (stack.isEmpty())
+            return false;
+
+        Number val = stack.peek();
+        if (inst instanceof StoreInstruction) {
+            int index = ((StoreInstruction) inst).getIndex();
+            varIndexToConstVal.put(index, val);
+        }
+        return true;
+    }
+
+    private boolean handleLoadInstruction(Instruction inst, Stack<Number> stack,
+            Map<Integer, Number> varIndexToConstVal) {
+        if (!(inst instanceof LoadInstruction)) {
+            return false;
+        }
+
+        int index = ((LoadInstruction) inst).getIndex();
+        if (varIndexToConstVal.containsKey(index)) {
+            stack.push(varIndexToConstVal.get(index));
+        }
+        return true;
+    }
+
+    private boolean isBinOperation(Instruction inst) {
+        return inst instanceof IADD || inst instanceof ISUB || inst instanceof IMUL || inst instanceof IDIV
+                || inst instanceof LADD || inst instanceof LSUB || inst instanceof LMUL || inst instanceof LDIV
+                || inst instanceof FADD || inst instanceof FSUB || inst instanceof FMUL || inst instanceof FDIV
+                || inst instanceof DADD || inst instanceof DSUB || inst instanceof DMUL || inst instanceof DDIV;
+    }
+
+    private boolean handleBinInstruction(Instruction inst, Stack<Number> stack) {
+        if (!isBinOperation(inst)) {
+            return false;
+        }
+
+        if (stack.size() < 2) {
+            System.out.println("[DEBUG] [Unexpected] Skipping " + inst.getName() + ". Stack size < 2.");
+            throw new RuntimeException("[DEBUG] [Unexpected] Stack size < 2.");
+        }
+
+        Number rhs = stack.pop();
+        Number lhs = stack.pop();
+
+        OptionalInt intResult = handleIntBinInstruction(inst, lhs, rhs);
+        if (intResult.isPresent()) {
+            stack.push(intResult.getAsInt());
+            return true;
+        }
+
+        OptionalLong longResult = handleLongBinInstruction(inst, lhs, rhs);
+        if (longResult.isPresent()) {
+            stack.push(longResult.getAsLong());
+            return true;
+        }
+
+        Optional<Float> floatResult = handleFloatBinInstruction(inst, lhs, rhs);
+        if (floatResult.isPresent()) {
+            stack.push(floatResult.get());
+            return true;
+        }
+
+        Optional<Double> doubleResult = handleDoubleBinInstruction(inst, lhs, rhs);
+        if (doubleResult.isPresent()) {
+            stack.push(doubleResult.get());
+            return true;
+        }
+
+        throw new RuntimeException("[DEBUG] [Unexpected] Unrecognized instruction: " + inst.getName());
+    }
+
     private void constantVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
         for (Method method : cgen.getMethods()) {
-            MethodGen methodGen = new MethodGen(method, cgen.getClassName(), cpgen);
-            InstructionList instructionList = methodGen.getInstructionList();
-            if (instructionList == null)
+            if (method.isAbstract() || method.isNative())
                 continue;
 
-            Stack<Object> methodStack = new Stack<>();
-            HashMap<Integer, Integer> localEnv = new HashMap<>();
-            Optional<Integer> returnValue = Optional.empty();
+            MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
+            InstructionList il = mg.getInstructionList();
 
-            boolean canFoldFully = true;
-
-            for (InstructionHandle ih = instructionList.getStart(); ih != null; ih = ih.getNext()) {
-                Instruction currInstruction = ih.getInstruction();
-
-                try {
-                    returnValue = constantVariableFoldingEvalMethod(currInstruction, methodStack, localEnv, cpgen);
-                } catch (AssertionError | ClassCastException e) {
-                    canFoldFully = false;
-                    break;
-                }
-
-                if (returnValue.isPresent())
-                    break;
+            if (il == null) {
+                System.out.println("[DEBUG] [Unexpected] No instruction list found for method: " + method.getName()
+                        + "\n\tSkipping ...");
+                continue;
             }
 
-            if (canFoldFully && returnValue.isPresent()) {
-                int constVal = returnValue.get();
-                InstructionList newIL = new InstructionList();
+            Map<Integer, Number> varIndexToConstVal = new HashMap<>();
+            Stack<Number> stack = new Stack<>();
 
-                Instruction pushConst;
-                if (constVal >= -1 && constVal <= 5) {
-                    pushConst = new ICONST(constVal);
-                } else if (constVal >= Byte.MIN_VALUE && constVal <= Byte.MAX_VALUE) {
-                    pushConst = new BIPUSH((byte) constVal);
-                } else if (constVal >= Short.MIN_VALUE && constVal <= Short.MAX_VALUE) {
-                    pushConst = new SIPUSH((short) constVal);
-                } else {
-                    pushConst = new LDC(cpgen.addInteger(constVal));
-                }
+            for (InstructionHandle ih = il.getStart(); ih != null; ih = ih.getNext()) {
+                Instruction inst = ih.getInstruction();
 
-                newIL.append(pushConst);
-                newIL.append(InstructionFactory.createReturn(Type.INT));
-
-                methodGen.setInstructionList(newIL);
-                methodGen.setMaxStack();
-                methodGen.setMaxLocals();
-
-                cgen.replaceMethod(method, methodGen.getMethod());
+                handlePushInstruction(inst, stack, cpgen);
+                handleStoreInstruction(inst, stack, varIndexToConstVal);
+                handleLoadInstruction(inst, stack, varIndexToConstVal);
+                handleBinInstruction(inst, stack);
             }
+
+            if (stack.isEmpty()) {
+                System.out.println("[OPTIMIZEF FAILURE] Could not optimize method: " + method.getName());
+                continue;
+            }
+
+            Number result = stack.pop();
+            InstructionList newIL = new InstructionList();
+            InstructionFactory factory = new InstructionFactory(cgen);
+            Type returnType = mg.getReturnType();
+
+            newIL.append(new PUSH(cpgen, result));
+            newIL.append(factory.createReturn(returnType));
+
+            mg.setInstructionList(newIL);
+            mg.setMaxStack();
+            mg.setMaxLocals();
+            cgen.replaceMethod(method, mg.getMethod());
         }
     }
+
+    // END : CONSTANT FOLDING
 
     // Helper: verifies top N operands on the stack are constants
     private boolean checkOperands(java.util.Stack<Object> stack, int n) {
@@ -224,6 +389,7 @@ public class ConstantFolder {
                         constVal = ((BIPUSH) inst).getValue().intValue();
                     else if (inst instanceof SIPUSH)
                         constVal = ((SIPUSH) inst).getValue().intValue();
+
                     // Check if the next instruction is an ISTORE to associate the constant value.
                     InstructionHandle next = ih.getNext();
                     if (next != null && next.getInstruction() instanceof ISTORE) {

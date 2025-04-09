@@ -1,23 +1,23 @@
 package comp0012.target;
 
 public class ConstantVariableFolding {
-    public int optimiseMe() {
-        // a <- 534245
-        int a = 534245;
+    // public int optimiseMe() {
+    // // a <- 534245
+    // int a = 534245;
 
-        // b <- 533011
-        int b = a - 1234;
+    // // b <- 533011
+    // int b = a - 1234;
 
-        // <- 4603228141.221259
-        System.out.println((120298345 - a) * 38.435792873);
+    // // <- 4603228141.221259
+    // System.out.println((120298345 - a) * 38.435792873);
 
-        for (int i = 0; i < 10; i++) {
-            System.out.println((b - a) * i);
-        }
+    // for (int i = 0; i < 10; i++) {
+    // System.out.println((b - a) * i);
+    // }
 
-        // -> 284758461695
-        return a * b;
-    }
+    // // -> 284758461695
+    // return a * b;
+    // }
 
 // @formatter:off
 

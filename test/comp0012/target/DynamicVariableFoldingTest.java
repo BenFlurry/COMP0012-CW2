@@ -13,52 +13,44 @@ import static org.junit.Assert.assertEquals;
  * Test dynamic variable folding
  */
 
-public class DynamicVariableFoldingTest
-{
+public class DynamicVariableFoldingTest {
     DynamicVariableFolding dvf = new DynamicVariableFolding();
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
 
     @Before
-    public void setUpStreams()
-    {
+    public void setUpStreams() {
         System.setOut(new PrintStream(outContent));
     }
 
     @After
-    public void cleanUpStreams()
-    {
+    public void cleanUpStreams() {
         System.setOut(null);
     }
 
     @Test
-    public void testMethodOne()
-    {
+    public void testMethodOne() {
         assertEquals(1301, dvf.methodOne());
     }
 
     @Test
-    public void testMethodTwoOut()
-    {
+    public void testMethodTwoOut() {
         dvf.methodTwo();
         assertEquals("true\n", outContent.toString());
     }
 
     @Test
-    public void testMethodTwoReturn()
-    {
+    public void testMethodTwoReturn() {
         assertEquals(true, dvf.methodTwo());
     }
 
     @Test
-    public void testMethodThree()
-    {
+    public void testMethodThree() {
         assertEquals(84, dvf.methodThree());
     }
-    
+
     @Test
-    public void testMethodFour(){
+    public void testMethodFour() {
         assertEquals(24, dvf.methodFour());
     }
-
 
 }
