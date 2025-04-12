@@ -12,22 +12,23 @@ public class ConstantVariableFoldingTest {
     ConstantVariableFolding cvf = new ConstantVariableFolding();
 
     @Test
-    public void testMethodOne(){
+    public void testMethodOne() {
         assertEquals(3650, cvf.methodOne());
     }
 
     @Test
-    public void testMethodTwo(){
+    public void testMethodTwo() {
         assertEquals(1.67, cvf.methodTwo(), 0.001);
     }
 
     @Test
-    public void testMethodThree(){
+    public void testMethodThree() {
         assertEquals(false, cvf.methodThree());
     }
-    
+
     @Test
-    public void testMethodFour(){
+    public void testMethodFour() {
         assertEquals(true, cvf.methodFour());
     }
+
 }
