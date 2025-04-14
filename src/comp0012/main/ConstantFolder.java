@@ -7,20 +7,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import org.apache.bcel.classfile.ClassParser;
-import org.apache.bcel.classfile.JavaClass;
-import org.apache.bcel.generic.ClassGen;
-import org.apache.bcel.generic.ConstantPoolGen;
-import org.apache.bcel.generic.Instruction;
-import org.apache.bcel.generic.InstructionHandle;
-import org.apache.bcel.generic.InstructionList;
-import org.apache.bcel.generic.MethodGen;
-import org.apache.bcel.generic.LDC;
-import org.apache.bcel.generic.ISTORE;
-import org.apache.bcel.generic.BIPUSH;
-import org.apache.bcel.generic.SIPUSH;
-import org.apache.bcel.generic.ICONST;
-import org.apache.bcel.generic.ILOAD;
 import org.apache.bcel.classfile.*;
 import org.apache.bcel.generic.*;
 import org.apache.bcel.util.InstructionFinder;
@@ -79,11 +65,15 @@ public class ConstantFolder {
             // Map for tracking constant integer values per local variable index.
             java.util.Map<Integer, Integer> intConsts = new HashMap<>();
 
-            // Traverse the instruction list.
-            for (InstructionHandle ih = il.getStart(); ih != null; ih = ih.getNext()) {
+            // Iterate over the instruction list.
+            // (We use an array of handles to avoid issues when deleting instructions.)
+            InstructionHandle[] handles = il.getInstructionHandles();
+            for (int i = 0; i < handles.length; i++) {
+                InstructionHandle ih = handles[i];
+                if (ih == null) continue; // could have been deleted in an earlier pass.
                 Instruction inst = ih.getInstruction();
 
-                // Look for constant load instructions of type int.
+                // --- Constant propagation: record constant assignments ---
                 if ((inst instanceof ICONST) || (inst instanceof BIPUSH) || (inst instanceof SIPUSH)) {
                     int constVal = 0;
                     if (inst instanceof ICONST)
@@ -92,14 +82,13 @@ public class ConstantFolder {
                         constVal = ((BIPUSH) inst).getValue().intValue();
                     else if (inst instanceof SIPUSH)
                         constVal = ((SIPUSH) inst).getValue().intValue();
-                    // Check if the next instruction is an ISTORE to associate the constant value.
                     InstructionHandle next = ih.getNext();
                     if (next != null && next.getInstruction() instanceof ISTORE) {
                         int index = ((ISTORE) next.getInstruction()).getIndex();
                         intConsts.put(index, constVal);
                     }
                 }
-                // Replace ILOAD with a direct constant load if available.
+                // Replace ILOAD with constant load if available.
                 else if (inst instanceof ILOAD) {
                     int index = ((ILOAD) inst).getIndex();
                     if (intConsts.containsKey(index)) {
@@ -108,9 +97,9 @@ public class ConstantFolder {
                         if (value >= -1 && value <= 5)
                             newInst = new ICONST(value);
                         else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE)
-                            newInst = new BIPUSH((byte)value);
+                            newInst = new BIPUSH((byte) value);
                         else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE)
-                            newInst = new SIPUSH((short)value);
+                            newInst = new SIPUSH((short) value);
                         else
                             newInst = new LDC(cpgen.addInteger(value));
                         ih.setInstruction(newInst);
@@ -122,10 +111,62 @@ public class ConstantFolder {
                     int index = ((ISTORE) inst).getIndex();
                     intConsts.remove(index);
                 }
-                // Similar peep-hole logic for long, float and double can be added here using LLOAD/LSTORE,
-                // FLOAD/FSTORE, DLOAD/DSTORE and their constant instructions (e.g., LCONST, FCONST, DCONST, LDC2_W).
+
+                // --- Dynamic folding: Fold binary arithmetic instructions ---
+                // Check if current instruction is a binary arithmetic op.
+                if (inst instanceof org.apache.bcel.generic.ArithmeticInstruction) {
+                    // Backtrack: the two previous instructions should be constant pushes.
+                    InstructionHandle prev1 = ih.getPrev();
+                    InstructionHandle prev2 = (prev1 != null) ? prev1.getPrev() : null;
+                    if (prev1 != null && prev2 != null) {
+                        Integer c1 = extractConstant(prev2.getInstruction(), cpgen);
+                        Integer c2 = extractConstant(prev1.getInstruction(), cpgen);
+                        if (c1 != null && c2 != null) {
+                            int result = 0;
+                            if (inst instanceof org.apache.bcel.generic.IADD) {
+                                result = c1 + c2;
+                            } else if (inst instanceof org.apache.bcel.generic.ISUB) {
+                                result = c1 - c2;
+                            } else if (inst instanceof org.apache.bcel.generic.IMUL) {
+                                result = c1 * c2;
+                            } else if (inst instanceof org.apache.bcel.generic.IDIV) {
+                                // Avoid division by zero.
+                                if (c2 == 0)
+                                    continue;
+                                result = c1 / c2;
+                            } else if (inst instanceof org.apache.bcel.generic.IREM) {
+                                if (c2 == 0)
+                                    continue;
+                                result = c1 % c2;
+                            } else {
+                                continue; // if op is not supported, skip.
+                            }
+                            // Create a new constant load instruction with the folded result.
+                            Instruction newInst;
+                            if (result >= -1 && result <= 5)
+                                newInst = new ICONST(result);
+                            else if (result >= Byte.MIN_VALUE && result <= Byte.MAX_VALUE)
+                                newInst = new BIPUSH((byte) result);
+                            else if (result >= Short.MIN_VALUE && result <= Short.MAX_VALUE)
+                                newInst = new SIPUSH((short) result);
+                            else
+                                newInst = new LDC(cpgen.addInteger(result));
+                            try {
+                                // Delete the two constant push instructions.
+                                il.delete(prev2);
+                                il.delete(prev1);
+                                // Replace the arithmetic op with the new constant.
+                                ih.setInstruction(newInst);
+                                modified = true;
+                            } catch (org.apache.bcel.generic.TargetLostException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
             }
 
+            // If modifications were made, update the method.
             if (modified) {
                 mg.setMaxStack();
                 mg.setMaxLocals();
@@ -133,9 +174,28 @@ public class ConstantFolder {
                 cgen.replaceMethod(method, mg.getMethod());
             }
         }
-
         return cgen;
     }
+
+/*
+ * Helper method to extract an integer constant from a constant push instruction.
+ * It returns the integer value if the instruction is ICONST, BIPUSH, SIPUSH, or an LDC with an Integer; otherwise, null.
+ */
+private Integer extractConstant(Instruction inst, ConstantPoolGen cpgen) {
+    if (inst instanceof ICONST) {
+        return ((ICONST) inst).getValue().intValue();
+    } else if (inst instanceof BIPUSH) {
+        return ((BIPUSH) inst).getValue().intValue();
+    } else if (inst instanceof SIPUSH) {
+        return ((SIPUSH) inst).getValue().intValue();
+    } else if (inst instanceof LDC) {
+        LDC ldc = (LDC) inst;
+        Object value = ldc.getValue(cpgen);
+        if (value instanceof Integer)
+            return (Integer) value;
+    }
+    return null;
+}
     
     
 	// task2 helper method
