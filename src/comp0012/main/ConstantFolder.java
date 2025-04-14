@@ -34,7 +34,7 @@ public class ConstantFolder {
     }
 
     public void optimize() {
-        logClassBytecode("Original", original);
+        // logClassBytecode("Original", original);
 
         ClassGen cgen = new ClassGen(original);
         ConstantPoolGen cpgen = cgen.getConstantPool();
@@ -44,34 +44,10 @@ public class ConstantFolder {
         cgen = dynamicVariableFoldingMethod(cgen, cpgen);
 
         this.optimized = cgen.getJavaClass();
-        logClassBytecode("Optimized", this.optimized);
+        // logClassBytecode("Optimized", this.optimized);
     }
 
     // START : CONSTANT FOLDING
-    private void logClassBytecode(String title, JavaClass jc) {
-        System.out.println("====== " + title + " ======");
-        System.out.println("Class Name: " + jc.getClassName());
-        ClassGen cgen = new ClassGen(jc);
-        ConstantPoolGen cpgen = cgen.getConstantPool();
-
-        for (Method method : cgen.getMethods()) {
-            System.out.println("Method: " + method.getName());
-            InstructionList il = new InstructionList(method.getCode().getCode());
-            System.out.println("Bytecode: \n" + il.toString());
-            System.out.println();
-
-        }
-        // Print the constant pool
-        System.out.println("Constant Pool: ");
-        for (int i = 0; i < cpgen.getSize(); i++) {
-            Constant c = cpgen.getConstant(i);
-            if (c != null) {
-                System.out.println("Index " + i + ": " + c.toString());
-            }
-        }
-        System.out.println();
-
-    }
 
     // Handle logic for constant folding
     private OptionalInt handleIntBinInstruction(Instruction inst, Number nlhs, Number nrhs) {
