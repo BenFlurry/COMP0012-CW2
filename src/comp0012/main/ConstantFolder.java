@@ -303,9 +303,13 @@ public class ConstantFolder {
 
             newIL.append(new PUSH(cpgen, result));
             newIL.append(factory.createReturn(returnType));
-
+    
+            newIL.setPositions();
+            mg.removeLocalVariables();
             mg.setInstructionList(newIL);
             mg.setMaxStack();
+            cgen.setMajor(50);
+            cgen.setMinor(0);
             mg.setMaxLocals();
             cgen.replaceMethod(method, mg.getMethod());
         }
