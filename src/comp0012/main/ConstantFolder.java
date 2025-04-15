@@ -45,69 +45,71 @@ public class ConstantFolder {
             InstructionList il = mg.getInstructionList();
             if (il == null)
                 continue;
-            boolean modified = false;
-            // Use an array of handles to avoid issues when deleting instructions.
-            InstructionHandle[] handles = il.getInstructionHandles();
-            for (int i = 0; i < handles.length; i++) {
-                InstructionHandle ih = handles[i];
-                if (ih == null)
-                    continue;
-                Instruction inst = ih.getInstruction();
-                if (inst instanceof org.apache.bcel.generic.ArithmeticInstruction) {
-                    // Look two instructions back.
-                    InstructionHandle prev1 = ih.getPrev();
-                    InstructionHandle prev2 = (prev1 != null) ? prev1.getPrev() : null;
-                    if (prev1 != null && prev2 != null) {
-                        Integer c1 = extractConstant(prev2.getInstruction(), cpgen);
-                        Integer c2 = extractConstant(prev1.getInstruction(), cpgen);
-                        if (c1 != null && c2 != null) {
-                            int result = 0;
-                            if (inst instanceof IADD) {
-                                result = c1 + c2;
-                            } else if (inst instanceof ISUB) {
-                                result = c1 - c2;
-                            } else if (inst instanceof IMUL) {
-                                result = c1 * c2;
-                            } else if (inst instanceof IDIV) {
-                                if (c2 == 0)
+            boolean modifiedOverall;
+            do {
+                modifiedOverall = false;
+                InstructionHandle[] handles = il.getInstructionHandles();
+                for (int i = 0; i < handles.length; i++) {
+                    InstructionHandle ih = handles[i];
+                    if (ih == null)
+                        continue;
+                    Instruction inst = ih.getInstruction();
+                    if (inst instanceof org.apache.bcel.generic.ArithmeticInstruction) {
+                        // Look two instructions back.
+                        InstructionHandle prev1 = ih.getPrev();
+                        InstructionHandle prev2 = (prev1 != null) ? prev1.getPrev() : null;
+                        if (prev1 != null && prev2 != null) {
+                            Integer c1 = extractConstant(prev2.getInstruction(), cpgen);
+                            Integer c2 = extractConstant(prev1.getInstruction(), cpgen);
+                            if (c1 != null && c2 != null) {
+                                int result = 0;
+                                if (inst instanceof IADD) {
+                                    result = c1 + c2;
+                                } else if (inst instanceof ISUB) {
+                                    result = c1 - c2;
+                                } else if (inst instanceof IMUL) {
+                                    result = c1 * c2;
+                                } else if (inst instanceof IDIV) {
+                                    if (c2 == 0)
+                                        continue;
+                                    result = c1 / c2;
+                                } else if (inst instanceof IREM) {
+                                    if (c2 == 0)
+                                        continue;
+                                    result = c1 % c2;
+                                } else {
                                     continue;
-                                result = c1 / c2;
-                            } else if (inst instanceof IREM) {
-                                if (c2 == 0)
-                                    continue;
-                                result = c1 % c2;
-                            } else {
-                                continue;
-                            }
-                            Instruction newInst;
-                            if (result >= -1 && result <= 5)
-                                newInst = new ICONST(result);
-                            else if (result >= Byte.MIN_VALUE && result <= Byte.MAX_VALUE)
-                                newInst = new BIPUSH((byte) result);
-                            else if (result >= Short.MIN_VALUE && result <= Short.MAX_VALUE)
-                                newInst = new SIPUSH((short) result);
-                            else
-                                newInst = new LDC(cpgen.addInteger(result));
-                            try {
-                                // Remove the two constant push instructions.
-                                il.delete(prev2);
-                                il.delete(prev1);
-                                // Replace the arithmetic op with the new constant push.
-                                ih.setInstruction(newInst);
-                                modified = true;
-                            } catch (org.apache.bcel.generic.TargetLostException e) {
-                                e.printStackTrace();
+                                }
+                                Instruction newInst;
+                                if (result >= -1 && result <= 5)
+                                    newInst = new ICONST(result);
+                                else if (result >= Byte.MIN_VALUE && result <= Byte.MAX_VALUE)
+                                    newInst = new BIPUSH((byte) result);
+                                else if (result >= Short.MIN_VALUE && result <= Short.MAX_VALUE)
+                                    newInst = new SIPUSH((short) result);
+                                else
+                                    newInst = new LDC(cpgen.addInteger(result));
+                                try {
+                                    // Remove the two constant push instructions.
+                                    il.delete(prev2);
+                                    il.delete(prev1);
+                                    // Replace the arithmetic op with the new constant push.
+                                    ih.setInstruction(newInst);
+                                    modifiedOverall = true;
+                                } catch (org.apache.bcel.generic.TargetLostException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
                     }
                 }
-            }
-            if (modified) {
-                mg.setMaxStack();
-                mg.setMaxLocals();
-                il.setPositions();
-                cgen.replaceMethod(method, mg.getMethod());
-            }
+                if (modifiedOverall) {
+                    il.setPositions();
+                }
+            } while (modifiedOverall);
+            mg.setMaxStack();
+            mg.setMaxLocals();
+            cgen.replaceMethod(method, mg.getMethod());
         }
     }
 
