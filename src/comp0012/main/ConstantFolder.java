@@ -57,13 +57,17 @@ public class ConstantFolder {
 
     }
 
+    static boolean DEBUG_MODE = false;
+
     public void optimize() {
 
         ClassGen cgen = new ClassGen(original);
         ConstantPoolGen cpgen = cgen.getConstantPool();
 
         // DEBUG
-        logClassBytecode("Original", original);
+        if (DEBUG_MODE) {
+            logClassBytecode("Original", original);
+        }
 
         // task1 completed here
         simpleVariableFoldingMethod(cgen, cpgen);
@@ -74,7 +78,9 @@ public class ConstantFolder {
         this.optimized = cgen.getJavaClass();
 
         // DEBUG
-        logClassBytecode("Optimized", optimized);
+        if (DEBUG_MODE) {
+            logClassBytecode("Optimized", optimized);
+        }
     }
 
     private boolean handlePush(Instruction inst, Stack<Object> stack) {
@@ -125,7 +131,6 @@ public class ConstantFolder {
             locals.put(index, stack.pop());
             return true;
         }
-        // TODO REHASH this and neatify area
         if (inst instanceof LSTORE) {
             int index = ((LSTORE) inst).getIndex();
             locals.put(index, stack.pop());
@@ -262,16 +267,6 @@ public class ConstantFolder {
             return true;
         }
 
-        // TODO neatify
-        // boolean f = (lstoreOpts += inst instanceof ISTORE ? 1 : 0) > 3;
-        // boolean g = (lssStoreOpts += inst instanceof LSTORE ? 1 : 0) > 1;
-        // modLcStack |= f | g;
-        // if (modLcStack) {
-        // stack.push(false);
-        // if (g)
-        // stack.push(true);
-        // }
-
         return false;
     }
 
@@ -301,7 +296,7 @@ public class ConstantFolder {
 
         Double a = ((Number) stack.pop()).doubleValue();
         Double b = ((Number) stack.pop()).doubleValue();
-        gotoHandled = true;
+        gotoOverheadHandled = true;
 
         if (inst instanceof IF_ICMPLE) {
             stack.push(a <= b);
@@ -328,13 +323,13 @@ public class ConstantFolder {
             return true;
         }
 
-        gotoHandled = false;
+        gotoOverheadHandled = false;
         stack.push(a);
         stack.push(b);
         return false;
     }
 
-    boolean gotoHandled = false;
+    boolean gotoOverheadHandled = false;
 
     private boolean handleComparisonUnary(Instruction inst, Stack<Object> stack) {
         if (stack.size() < 1) {
@@ -346,7 +341,7 @@ public class ConstantFolder {
         }
 
         Integer val = -(Integer) stack.pop();
-        gotoHandled = true;
+        gotoOverheadHandled = true;
         if (inst instanceof IFLE) {
             stack.push(val <= 0);
             return true;
@@ -373,7 +368,7 @@ public class ConstantFolder {
             stack.push(val != 0);
             return true;
         }
-        gotoHandled = false;
+        gotoOverheadHandled = false;
         stack.push(-val);
         return false;
     }
@@ -438,11 +433,6 @@ public class ConstantFolder {
         return inst instanceof ALOAD || inst instanceof INVOKESPECIAL || inst instanceof GOTO;
     }
 
-    // // TODO neatify
-    // int lstoreOpts = 0;
-    // int lssStoreOpts = 0;
-    // boolean modLcStack = false;
-
     private InstructionList simulateInstructionList(InstructionList il, ConstantPoolGen cpgen, Method method) {
         Stack<Object> stack = new Stack<>();
         HashMap<Integer, Object> locals = new HashMap<>();
@@ -466,13 +456,8 @@ public class ConstantFolder {
                     handleOperation(inst, stack) ||
                     handleComparisons(inst, stack)) {
 
-                // // TODO neatify
-                // if (modLcStack) {
-                // modLcStack = false;
-                // break;
-                // }
-                if (gotoHandled) {
-                    gotoHandled = false;
+                if (gotoOverheadHandled) {
+                    gotoOverheadHandled = false;
                     result = stack.pop();
                     break;
                 }
