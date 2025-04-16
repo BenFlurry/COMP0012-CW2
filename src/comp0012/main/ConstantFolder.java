@@ -440,28 +440,27 @@ public class ConstantFolder {
 
         for (InstructionHandle ih = il.getStart(); ih != null; ih = ih.getNext()) {
             Instruction inst = ih.getInstruction();
-            if (inst instanceof RETURN) { // Void Return
+            if (inst instanceof RETURN) { 
                 return null;
             }
             if (ignoreInstruction(inst)) {
                 continue;
             }
 
-            if (false ||
-                    handleLoad(inst, stack, locals) ||
-                    handleStore(inst, stack, locals) ||
-                    handlePush(inst, stack) ||
-                    handleCasts(inst, stack) ||
-                    handleLdc(inst, stack, locals, cpgen) ||
-                    handleOperation(inst, stack) ||
-                    handleComparisons(inst, stack)) {
+            if (false || 
+                handleLoad(inst, stack, locals) ||
+                handleStore(inst, stack, locals) ||
+                handlePush(inst, stack) ||
+                handleCasts(inst, stack) ||
+                handleLdc(inst, stack, locals, cpgen) ||
+                handleOperation(inst, stack) ||
+                handleComparisons(inst, stack)) {
 
                 if (gotoOverheadHandled) {
                     gotoOverheadHandled = false;
                     result = stack.pop();
                     break;
                 }
-
                 continue;
             }
 
@@ -470,10 +469,10 @@ public class ConstantFolder {
                 break;
             }
 
-            // throw new RuntimeException("Unsupported instruction: " + inst);
+            // throw new RuntimeException("Unsupported instruction: " + isnt)
             System.out.println("Unsupported instruction: " + inst);
-            System.out.println("Cannot optimize this instruction");
-            return il;
+            System.out.println("Cannot optimize this instruction; skipping constant folding.");
+            return null;
         }
 
         if (result == null) {
@@ -485,40 +484,29 @@ public class ConstantFolder {
             int index = cpgen.addInteger((Integer) result);
             newIl.append(new LDC(index));
             newIl.append(InstructionFactory.createReturn(Type.INT));
-            return newIl;
-        }
-        if (result instanceof Double) {
+        } else if (result instanceof Double) {
             int index = cpgen.addDouble((Double) result);
-            newIl.append(new LDC2_W(index)); // ✅ correct instruction for double
+            newIl.append(new LDC2_W(index));
             newIl.append(InstructionFactory.createReturn(Type.DOUBLE));
-            return newIl;
-        }
-        if (result instanceof Long) {
+        } else if (result instanceof Long) {
             int index = cpgen.addLong((Long) result);
-            newIl.append(new LDC2_W(index)); // ✅ correct instruction for long
+            newIl.append(new LDC2_W(index));
             newIl.append(InstructionFactory.createReturn(Type.LONG));
-            return newIl;
-        }
-        if (result instanceof Float) {
+        } else if (result instanceof Float) {
             int index = cpgen.addFloat((Float) result);
             newIl.append(new LDC(index));
             newIl.append(InstructionFactory.createReturn(Type.FLOAT));
-            return newIl;
-        }
-        if (result instanceof Long) {
-            int index = cpgen.addLong((Long) result);
-            newIl.append(new LDC(index));
-            newIl.append(InstructionFactory.createReturn(Type.LONG));
-            return newIl;
-        }
-        if (result instanceof Boolean) {
+        } else if (result instanceof Boolean) {
             int val = (Boolean) result ? 1 : 0;
             newIl.append(new ICONST(val));
             newIl.append(InstructionFactory.createReturn(Type.INT));
-            return newIl;
+        } else {
+            // Unsupported constant type.
+            return null;
         }
-
-        return null;
+        
+        newIl.setPositions();  // Ensure instruction positions are computed.
+        return newIl;
     }
 
     private void constantVaribleFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
@@ -622,9 +610,14 @@ public class ConstantFolder {
             }
 
             if (modified) {
+                mg.removeLocalVariables();
+                mg.removeLineNumbers();
+                mg.removeCodeAttributes();
+
                 mg.setMaxStack();
                 mg.setMaxLocals();
                 il.setPositions();
+                mg.update();
                 cgen.replaceMethod(method, mg.getMethod());
             }
         }
