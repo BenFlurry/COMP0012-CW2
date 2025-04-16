@@ -1,7 +1,151 @@
 Testsuite: comp0012.target.ConstantVariableFoldingTest
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 sec
+Tests run: 4, Failures: 0, Errors: 4, Skipped: 0, Time elapsed: 0.047 sec
 
-Testcase: testMethodThree took 0.001 sec
+Testcase: testMethodThree took 0.007 sec
+	Caused an ERROR
+Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+java.lang.VerifyError: Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+	at comp0012.target.ConstantVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+
 Testcase: testMethodFour took 0 sec
+	Caused an ERROR
+Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+java.lang.VerifyError: Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+	at comp0012.target.ConstantVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+
 Testcase: testMethodOne took 0 sec
+	Caused an ERROR
+Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+java.lang.VerifyError: Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+	at comp0012.target.ConstantVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+
 Testcase: testMethodTwo took 0 sec
+	Caused an ERROR
+Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+java.lang.VerifyError: Bad return type
+Exception Details:
+  Location:
+    comp0012/target/ConstantVariableFolding.methodFour()Z @3: dreturn
+  Reason:
+    Type double (current frame, stack[0]) is not assignable to boolean (from method signature)
+  Current Frame:
+    bci: @3
+    flags: { }
+    locals: { 'comp0012/target/ConstantVariableFolding' }
+    stack: { double, double_2nd }
+  Bytecode:
+    0000000: 1400 1caf                              
+
+	at comp0012.target.ConstantVariableFoldingTest.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+
