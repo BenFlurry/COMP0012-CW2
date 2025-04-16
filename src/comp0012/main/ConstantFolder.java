@@ -31,7 +31,150 @@ public class ConstantFolder {
             e.printStackTrace();
         }
     }
+    
+    /*
+     * main loop calling each of the task's methods to implement simple, constant and dynamic code folding optimisations
+     */
+    public void optimize() {
 
+        ClassGen cgen = new ClassGen(original);
+        ConstantPoolGen cpgen = cgen.getConstantPool();
+
+        // DEBUG
+        if (DEBUG_MODE) {
+            logClassBytecode("Original", original);
+        }
+
+        // task1 completed here
+        simpleVariableFoldingMethod(cgen, cpgen);
+        // task 2 completed here
+        constantVaribleFoldingMethod(cgen, cpgen);
+        // task3 completed here
+        cgen = dynamicVariableFoldingMethod(cgen, cpgen);
+        this.optimized = cgen.getJavaClass();
+
+        // DEBUG
+        if (DEBUG_MODE) {
+            logClassBytecode("Optimized", optimized);
+        }
+    }
+
+    /*
+     * main method implementing task 2 called from optimize() as defined on the handout
+     */
+    private void constantVaribleFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
+
+        for (Method method : cgen.getMethods()) {
+            MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
+            InstructionList il = mg.getInstructionList();
+            if (il == null)
+                continue;
+
+            InstructionList optimizedIl = simulateInstructionList(il, cpgen, method);
+            if (optimizedIl == null)
+                continue;
+
+            mg.removeLocalVariables();
+            mg.removeLineNumbers();
+            mg.removeCodeAttributes();
+            mg.setInstructionList(optimizedIl);
+            mg.setMaxStack();
+            mg.setMaxLocals();
+            mg.update();
+            cgen.replaceMethod(method, mg.getMethod());
+        }
+    }
+
+    /*
+     * method to implement task1 on the handout, completing simple variable folding
+     * as required
+     */
+    private void simpleVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
+        for (Method method : cgen.getMethods()) {
+            InstructionList instList = new InstructionList(method.getCode().getCode());
+            simpleInt(instList, cpgen);
+            simpleLong(instList, cpgen);
+            simpleFloat(instList, cpgen);
+            simpleDouble(instList, cpgen);
+        }
+    }
+
+    /*
+     * method to implement task3 on the handout, completing dynamic variable folding
+     * as required, returning the class generator.
+     */
+    private ClassGen dynamicVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
+        for (org.apache.bcel.classfile.Method method : cgen.getMethods()) {
+            MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
+            InstructionList il = mg.getInstructionList();
+            if (il == null)
+                continue;
+            boolean modified = false;
+            // Map for tracking constant integer values per local variable index
+            java.util.Map<Integer, Integer> intConsts = new HashMap<>();
+
+            // Traverse the instruction list
+            for (InstructionHandle ih = il.getStart(); ih != null; ih = ih.getNext()) {
+                Instruction inst = ih.getInstruction();
+
+                // Look for constant load instructions of type int
+                if ((inst instanceof ICONST) || (inst instanceof BIPUSH) || (inst instanceof SIPUSH)) {
+                    int constVal = 0;
+                    if (inst instanceof ICONST)
+                        constVal = ((ICONST) inst).getValue().intValue();
+                    else if (inst instanceof BIPUSH)
+                        constVal = ((BIPUSH) inst).getValue().intValue();
+                    else if (inst instanceof SIPUSH)
+                        constVal = ((SIPUSH) inst).getValue().intValue();
+                    // Check if the next instruction is an ISTORE to associate the constant value
+                    InstructionHandle next = ih.getNext();
+                    if (next != null && next.getInstruction() instanceof ISTORE) {
+                        int index = ((ISTORE) next.getInstruction()).getIndex();
+                        intConsts.put(index, constVal);
+                    }
+                }
+                // Replace ILOAD with a direct constant load if available
+                else if (inst instanceof ILOAD) {
+                    int index = ((ILOAD) inst).getIndex();
+                    if (intConsts.containsKey(index)) {
+                        int value = intConsts.get(index);
+                        Instruction newInst;
+                        if (value >= -1 && value <= 5)
+                            newInst = new ICONST(value);
+                        else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE)
+                            newInst = new BIPUSH((byte) value);
+                        else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE)
+                            newInst = new SIPUSH((short) value);
+                        else
+                            newInst = new LDC(cpgen.addInteger(value));
+                        ih.setInstruction(newInst);
+                        modified = true;
+                    }
+                }
+                // When a variable is reassigned, remove its constant from the map
+                else if (inst instanceof ISTORE) {
+                    int index = ((ISTORE) inst).getIndex();
+                    intConsts.remove(index);
+                }
+            }
+
+            if (modified) {
+                mg.removeLocalVariables();
+                mg.removeLineNumbers();
+                mg.removeCodeAttributes();
+
+                mg.setMaxStack();
+                mg.setMaxLocals();
+                il.setPositions();
+                mg.update();
+                cgen.replaceMethod(method, mg.getMethod());
+            }
+        }
+
+        return cgen;
+    }
+
+    // task 2 helper method
     private void logClassBytecode(String title, JavaClass jc) {
         System.out.println("====== " + title + " ======");
         System.out.println("Class Name: " + jc.getClassName());
@@ -59,30 +202,8 @@ public class ConstantFolder {
 
     static boolean DEBUG_MODE = false;
 
-    public void optimize() {
 
-        ClassGen cgen = new ClassGen(original);
-        ConstantPoolGen cpgen = cgen.getConstantPool();
-
-        // DEBUG
-        if (DEBUG_MODE) {
-            logClassBytecode("Original", original);
-        }
-
-        // task1 completed here
-        simpleVariableFoldingMethod(cgen, cpgen);
-        // task 2 completed here
-        constantVaribleFoldingMethod(cgen, cpgen);
-        // task3 completed here
-        cgen = dynamicVariableFoldingMethod(cgen, cpgen);
-        this.optimized = cgen.getJavaClass();
-
-        // DEBUG
-        if (DEBUG_MODE) {
-            logClassBytecode("Optimized", optimized);
-        }
-    }
-
+    // task 2 helper method
     private boolean handlePush(Instruction inst, Stack<Object> stack) {
 
         if (inst instanceof ICONST) {
@@ -115,6 +236,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleStore(Instruction inst, Stack<Object> stack, HashMap<Integer, Object> locals) {
         if (inst instanceof ISTORE) {
             int index = ((ISTORE) inst).getIndex();
@@ -139,6 +261,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleOperation(Instruction inst, Stack<Object> stack) {
         // Ints
         if (inst instanceof IADD) {
@@ -245,6 +368,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleLoad(Instruction inst, Stack<Object> stack, HashMap<Integer, Object> locals) {
         if (inst instanceof ILOAD) {
             int index = ((ILOAD) inst).getIndex();
@@ -270,6 +394,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleLdc(Instruction inst, Stack<Object> stack, HashMap<Integer, Object> locals,
             ConstantPoolGen cpgen) {
         if (inst instanceof LDC) {
@@ -285,6 +410,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleComparisonBin(Instruction inst, Stack<Object> stack) {
         if (stack.size() < 2) {
             return false;
@@ -331,6 +457,7 @@ public class ConstantFolder {
 
     boolean gotoOverheadHandled = false;
 
+    // task 2 helper method
     private boolean handleComparisonUnary(Instruction inst, Stack<Object> stack) {
         if (stack.size() < 1) {
             return false;
@@ -373,6 +500,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleComparisonLong(Instruction inst, Stack<Object> stack) {
         if (!(inst instanceof LCMP)) {
             return false;
@@ -387,6 +515,7 @@ public class ConstantFolder {
         return true;
     }
 
+    // task 2 helper method
     private boolean handleComparisons(Instruction inst, Stack<Object> stack) {
         // BCEL conditional branches are subclasses of `IfInstruction`
         if (false ||
@@ -399,6 +528,7 @@ public class ConstantFolder {
         return false;
     }
 
+    // task 2 helper method
     private boolean handleCasts(Instruction inst, Stack<Object> stack) {
         if (inst instanceof I2D) {
             int val = (Integer) stack.pop();
@@ -433,6 +563,7 @@ public class ConstantFolder {
         return inst instanceof ALOAD || inst instanceof INVOKESPECIAL || inst instanceof GOTO;
     }
 
+    // task 2 helper method
     private InstructionList simulateInstructionList(InstructionList il, ConstantPoolGen cpgen, Method method) {
         Stack<Object> stack = new Stack<>();
         HashMap<Integer, Object> locals = new HashMap<>();
@@ -507,122 +638,6 @@ public class ConstantFolder {
         
         newIl.setPositions();  // Ensure instruction positions are computed.
         return newIl;
-    }
-
-    private void constantVaribleFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
-
-        for (Method method : cgen.getMethods()) {
-            MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
-            InstructionList il = mg.getInstructionList();
-            if (il == null)
-                continue;
-
-            InstructionList optimizedIl = simulateInstructionList(il, cpgen, method);
-            if (optimizedIl == null)
-                continue;
-
-            mg.removeLocalVariables();
-            mg.removeLineNumbers();
-            mg.removeCodeAttributes();
-            mg.setInstructionList(optimizedIl);
-            mg.setMaxStack();
-            mg.setMaxLocals();
-            mg.update();
-            cgen.replaceMethod(method, mg.getMethod());
-        }
-    }
-
-    /*
-     * method to implement task1 on the handout, completing simple variable folding
-     * as required
-     */
-    private void simpleVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
-        for (Method method : cgen.getMethods()) {
-            InstructionList instList = new InstructionList(method.getCode().getCode());
-            simpleInt(instList, cpgen);
-            simpleLong(instList, cpgen);
-            simpleFloat(instList, cpgen);
-            simpleDouble(instList, cpgen);
-        }
-    }
-
-    /*
-     * method to implement task3 on the handout, completing dynamic variable folding
-     * as required, returning the class generator.
-     */
-    private ClassGen dynamicVariableFoldingMethod(ClassGen cgen, ConstantPoolGen cpgen) {
-        for (org.apache.bcel.classfile.Method method : cgen.getMethods()) {
-            MethodGen mg = new MethodGen(method, cgen.getClassName(), cpgen);
-            InstructionList il = mg.getInstructionList();
-            if (il == null)
-                continue;
-            boolean modified = false;
-            // Map for tracking constant integer values per local variable index.
-            java.util.Map<Integer, Integer> intConsts = new HashMap<>();
-
-            // Traverse the instruction list.
-            for (InstructionHandle ih = il.getStart(); ih != null; ih = ih.getNext()) {
-                Instruction inst = ih.getInstruction();
-
-                // Look for constant load instructions of type int.
-                if ((inst instanceof ICONST) || (inst instanceof BIPUSH) || (inst instanceof SIPUSH)) {
-                    int constVal = 0;
-                    if (inst instanceof ICONST)
-                        constVal = ((ICONST) inst).getValue().intValue();
-                    else if (inst instanceof BIPUSH)
-                        constVal = ((BIPUSH) inst).getValue().intValue();
-                    else if (inst instanceof SIPUSH)
-                        constVal = ((SIPUSH) inst).getValue().intValue();
-                    // Check if the next instruction is an ISTORE to associate the constant value.
-                    InstructionHandle next = ih.getNext();
-                    if (next != null && next.getInstruction() instanceof ISTORE) {
-                        int index = ((ISTORE) next.getInstruction()).getIndex();
-                        intConsts.put(index, constVal);
-                    }
-                }
-                // Replace ILOAD with a direct constant load if available.
-                else if (inst instanceof ILOAD) {
-                    int index = ((ILOAD) inst).getIndex();
-                    if (intConsts.containsKey(index)) {
-                        int value = intConsts.get(index);
-                        Instruction newInst;
-                        if (value >= -1 && value <= 5)
-                            newInst = new ICONST(value);
-                        else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE)
-                            newInst = new BIPUSH((byte) value);
-                        else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE)
-                            newInst = new SIPUSH((short) value);
-                        else
-                            newInst = new LDC(cpgen.addInteger(value));
-                        ih.setInstruction(newInst);
-                        modified = true;
-                    }
-                }
-                // When a variable is reassigned, remove its constant from the map.
-                else if (inst instanceof ISTORE) {
-                    int index = ((ISTORE) inst).getIndex();
-                    intConsts.remove(index);
-                }
-                // Similar peep-hole logic for long, float and double can be added here using
-                // LLOAD/LSTORE,
-                // FLOAD/FSTORE, DLOAD/DSTORE and their constant instructions (e.g., LCONST,
-                // FCONST, DCONST, LDC2_W).
-            }
-
-            if (modified) {
-                mg.removeLocalVariables();
-                mg.removeLineNumbers();
-                mg.removeCodeAttributes();
-
-                mg.setMaxStack();
-                mg.setMaxLocals();
-                il.setPositions();
-                mg.update();
-                cgen.replaceMethod(method, mg.getMethod());
-            }
-        }
-
-        return cgen;
     }
 
     // task1 helper method
