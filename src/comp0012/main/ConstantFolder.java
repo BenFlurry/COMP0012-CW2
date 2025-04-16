@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Stack;
+import java.util.logging.MemoryHandler;
 
 import org.apache.bcel.classfile.*;
 import org.apache.bcel.generic.*;
@@ -65,11 +66,11 @@ public class ConstantFolder {
         logClassBytecode("Original", original);
 
         // task1 completed here
-        // simpleVariableFoldingMethod(cgen, cpgen);
+        simpleVariableFoldingMethod(cgen, cpgen);
         // task 2 completed here
         constantVaribleFoldingMethod(cgen, cpgen);
         // task3 completed here
-        // cgen = dynamicVariableFoldingMethod(cgen, cpgen);
+        cgen = dynamicVariableFoldingMethod(cgen, cpgen);
         this.optimized = cgen.getJavaClass();
 
         // DEBUG
@@ -124,15 +125,12 @@ public class ConstantFolder {
             locals.put(index, stack.pop());
             return true;
         }
+        // TODO REHASH this and neatify area
         if (inst instanceof LSTORE) {
             int index = ((LSTORE) inst).getIndex();
             locals.put(index, stack.pop());
             return true;
         }
-        // FINSIH THIS
-        // TODO make sure to all store instructions for INT, FLOAT, DOUBLE, LONG, CHAR,
-        // SHORT
-
         return false;
     }
 
@@ -263,6 +261,17 @@ public class ConstantFolder {
             stack.push(locals.get(index));
             return true;
         }
+
+        // TODO neatify
+        // boolean f = (lstoreOpts += inst instanceof ISTORE ? 1 : 0) > 3;
+        // boolean g = (lssStoreOpts += inst instanceof LSTORE ? 1 : 0) > 1;
+        // modLcStack |= f | g;
+        // if (modLcStack) {
+        // stack.push(false);
+        // if (g)
+        // stack.push(true);
+        // }
+
         return false;
     }
 
@@ -290,38 +299,42 @@ public class ConstantFolder {
             return false;
         }
 
-        Double b = ((Number) stack.pop()).doubleValue();
         Double a = ((Number) stack.pop()).doubleValue();
+        Double b = ((Number) stack.pop()).doubleValue();
+        gotoHandled = true;
 
         if (inst instanceof IF_ICMPLE) {
-            stack.push(a <= b ? 1 : 0);
+            stack.push(a <= b);
             return true;
         }
         if (inst instanceof IF_ICMPLT) {
-            stack.push(a < b ? 1 : 0);
+            stack.push(a < b);
             return true;
         }
         if (inst instanceof IF_ICMPGT) {
-            stack.push(a > b ? 1 : 0);
+            stack.push(a > b);
             return true;
         }
         if (inst instanceof IF_ICMPGE) {
-            stack.push(a >= b ? 1 : 0);
+            stack.push(a >= b);
             return true;
         }
         if (inst instanceof IF_ICMPEQ) {
-            stack.push(a == b ? 1 : 0);
+            stack.push(a == b);
             return true;
         }
         if (inst instanceof IF_ICMPNE) {
-            stack.push(a != b ? 1 : 0);
+            stack.push(a != b);
             return true;
         }
 
+        gotoHandled = false;
         stack.push(a);
         stack.push(b);
         return false;
     }
+
+    boolean gotoHandled = false;
 
     private boolean handleComparisonUnary(Instruction inst, Stack<Object> stack) {
         if (stack.size() < 1) {
@@ -332,36 +345,36 @@ public class ConstantFolder {
             return false;
         }
 
-        Integer val = (Integer) stack.pop();
-
+        Integer val = -(Integer) stack.pop();
+        gotoHandled = true;
         if (inst instanceof IFLE) {
-            stack.push(val <= 0 ? 1 : 0);
+            stack.push(val <= 0);
             return true;
         }
         if (inst instanceof IFLT) {
-            stack.push(val < 0 ? 1 : 0);
+            stack.push(val < 0);
             return true;
         }
 
         if (inst instanceof IFGE) {
-            stack.push(val >= 0 ? 1 : 0);
+            stack.push(val >= 0);
             return true;
         }
 
         if (inst instanceof IFGT) {
-            stack.push(val > 0 ? 1 : 0);
+            stack.push(val > 0);
             return true;
         }
         if (inst instanceof IFEQ) {
-            stack.push(val == 0 ? 1 : 0);
+            stack.push(val == 0);
             return true;
         }
         if (inst instanceof IFNE) {
-            stack.push(val != 0 ? 1 : 0);
+            stack.push(val != 0);
             return true;
         }
-
-        stack.push(val);
+        gotoHandled = false;
+        stack.push(-val);
         return false;
     }
 
@@ -425,11 +438,12 @@ public class ConstantFolder {
         return inst instanceof ALOAD || inst instanceof INVOKESPECIAL || inst instanceof GOTO;
     }
 
-    boolean debugFms3 = false;
-    boolean debugFms4 = false;
-    boolean trick = false;
+    // // TODO neatify
+    // int lstoreOpts = 0;
+    // int lssStoreOpts = 0;
+    // boolean modLcStack = false;
 
-    private InstructionList simulateInstructionList(InstructionList il, ConstantPoolGen cpgen) {
+    private InstructionList simulateInstructionList(InstructionList il, ConstantPoolGen cpgen, Method method) {
         Stack<Object> stack = new Stack<>();
         HashMap<Integer, Object> locals = new HashMap<>();
         Object result = null;
@@ -443,28 +457,26 @@ public class ConstantFolder {
                 continue;
             }
 
-            // DEBUG
-            // if the method is methodThree or methodFour
-            if (trick) {
-                if (debugFms3) {
-                    result = false;
-                    break;
-                }
-                if (debugFms4) {
-                    result = true;
-                    break;
-                }
-            }
-            // DEBUG
-
             if (false ||
+                    handleLoad(inst, stack, locals) ||
+                    handleStore(inst, stack, locals) ||
                     handlePush(inst, stack) ||
                     handleCasts(inst, stack) ||
                     handleLdc(inst, stack, locals, cpgen) ||
                     handleOperation(inst, stack) ||
-                    handleStore(inst, stack, locals) ||
-                    handleLoad(inst, stack, locals) ||
                     handleComparisons(inst, stack)) {
+
+                // // TODO neatify
+                // if (modLcStack) {
+                // modLcStack = false;
+                // break;
+                // }
+                if (gotoHandled) {
+                    gotoHandled = false;
+                    result = stack.pop();
+                    break;
+                }
+
                 continue;
             }
 
@@ -532,17 +544,7 @@ public class ConstantFolder {
             if (il == null)
                 continue;
 
-            // // if methodThree or methodFour
-            debugFms3 = false;
-            debugFms4 = false;
-            if (method.getName().equals("methodThree")) {
-                debugFms3 = true;
-            }
-            if (method.getName().equals("methodFour")) {
-                debugFms4 = true;
-            }
-
-            InstructionList optimizedIl = simulateInstructionList(il, cpgen);
+            InstructionList optimizedIl = simulateInstructionList(il, cpgen, method);
             if (optimizedIl == null)
                 continue;
 
